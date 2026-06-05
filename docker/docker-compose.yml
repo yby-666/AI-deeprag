@@ -1,0 +1,16 @@
+services:
+  milvus:
+    image: milvusdb/milvus:v2.4.17
+    container_name: deeprag-milvus
+    command: ["milvus", "run", "standalone"]
+    ports:
+      - "19530:19530"   # gRPC / RESTful API
+      - "9091:9091"     # 健康检查 & Prometheus metrics
+    volumes:
+      - milvus_data:/var/lib/milvus
+    environment:
+      ETCD_USE_EMBED: "true"       # 内嵌 etcd，无需外部容器
+      COMMON_STORAGETYPE: local    # 本地存储，无需 MinIO
+
+volumes:
+  milvus_data:

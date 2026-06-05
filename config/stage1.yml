@@ -1,0 +1,34 @@
+# DeepRAG Engine - Stage 1 配置
+
+llm:
+  baseUrl: "http://localhost:11434/v1"
+  apiKey: "ollama"
+  model: "qwen2.5"
+  timeout: 60
+
+embedding:
+  baseUrl: "http://localhost:11434"
+  model: "nomic-embed-text"
+  dimension: 768
+  timeout: 30
+
+vectorStore:
+  host: "localhost"
+  port: 19530
+  collectionPrefix: "deeprag_"
+
+chunker:
+  strategy: "fixed_size"
+  maxSize: 500
+  overlap: 50
+
+retriever:
+  topK: 5
+  scoreThreshold: 0.5
+
+evaluation:
+  datasetPath: "evaluation/eval_set.json"
+  reportPath: "evaluation/reports"
+
+api:
+  port: 8080

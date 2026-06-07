@@ -19,11 +19,15 @@ public class RecursiveChunker implements Chunker {
     private static final String[] SEPARATORS = {"\n\n", "\n", "。", "！", "？", " ", ""};
 
     private final int maxSize;
-    private final int overlap;
 
+    /**
+     * @param maxSize 单个 chunk 的最大字符数
+     * @param overlap 保留参数以兼容 {@link Chunker} 各实现的统一构造签名，递归策略内部不使用。
+     *                递归按段落→句子→行→字符切分，切出来的片段本身就在语义边界上，
+     *                不存在固定窗口硬切导致的"词语被腰斩"问题，overlap 没有收益。
+     */
     public RecursiveChunker(int maxSize, int overlap) {
         this.maxSize = maxSize;
-        this.overlap = overlap;
     }
 
     @Override
@@ -34,32 +38,18 @@ public class RecursiveChunker implements Chunker {
         ConsoleLog.info("递归分块开始，文本长度: " + text.length());
         List<String> pieces = recursiveSplit(text, 0);
 
-        // 组装 Chunk，带 overlap
+        // 组装 Chunk：递归切分产出的 pieces 本身就在语义边界上（段落/句子/行），
+        // 不存在固定窗口硬切导致的"词语被腰斩"问题，因此不需要 overlap 来修复语义断裂。
+        // 直接以 pieces 作为最终 chunk，不做前后拼贴。
         List<Chunk> chunks = new ArrayList<>();
         int index = 0;
-        String prevTail = "";
 
         for (String piece : pieces) {
-            String content = (piece).trim();
+            String content = piece.trim();
             if (content.isEmpty()) continue;
 
-            // 拼接上一段的尾部作为 overlap 上下文
-            String finalContent;
-            if (!prevTail.isEmpty() && index > 0) {
-                finalContent = prevTail + content;
-            } else {
-                finalContent = content;
-            }
-
             String id = generateId(parseResult.getMetadata().getSource(), index);
-            chunks.add(new Chunk(id, finalContent, baseMeta));
-
-            // 保留当前 chunk 末尾 overlap 长度的文本
-            if (finalContent.length() > overlap) {
-                prevTail = finalContent.substring(finalContent.length() - overlap);
-            } else {
-                prevTail = finalContent;
-            }
+            chunks.add(new Chunk(id, content, baseMeta));
             index++;
         }
 
@@ -68,8 +58,26 @@ public class RecursiveChunker implements Chunker {
     }
 
     /**
-     * 递归切分：从 separatorLevel 开始尝试分隔
-     * 如果某段仍然超过 maxSize，用下一级分隔符继续切
+     *   ┌────────┬─────────────────────────────┬────────────────────┐
+     *   │ 分隔符  │    split 实际使用的正则         │        原因        │
+     *   ├────────┼─────────────────────────────┼────────────────────┤
+     *   │ \n\n   │ \n\s*\n                     │ 容错段落间的空白行     │
+     *   ├────────┼─────────────────────────────┼────────────────────┤
+     *   │ \n     │ \n（escapeRegex 后仍为 \n）   │ 按行切               │
+     *   ├────────┼─────────────────────────────┼────────────────────┤
+     *   │ 。     │ 。                           │ 按句号切             │
+     *   ├────────┼─────────────────────────────┼────────────────────┤
+     *   │ ！     │ ！                           │ 按感叹号切           │
+     *   ├────────┼─────────────────────────────┼────────────────────┤
+     *   │ ？     │ ？                           │ 按问号切             │
+     *   ├────────┼─────────────────────────────┼────────────────────┤
+     *   │        │  （空格）                     │ 按空格切             │
+     *   ├────────┼─────────────────────────────┼────────────────────┤
+     *   │ ""     │ 不走 split，直接 hardSplit    │ 按字符硬切            │
+     *   └────────┴─────────────────────────────┴────────────────────┘
+     * 总结：这行代码本质上就是 text.split(regex)
+     *      1、只是对 \n\n 做了增强（支持空白行）对其它分隔符做了正则转义保护。
+     *      2、内层的 sep.length() == 1 判断是死代码。（冗余代码）
      */
     private List<String> recursiveSplit(String text, int separatorLevel) {
         if (separatorLevel >= SEPARATORS.length) {
@@ -86,8 +94,9 @@ public class RecursiveChunker implements Chunker {
         }
 
         // 按当前分隔符切分
-        String[] parts = text.split(sep.equals("\n\n") ? "\n\\s*\n" : sep.length() == 1 ?
-                escapeRegex(sep) : escapeRegex(sep));
+        //  ① \n\n → 用 "\n\s*\n" 匹配段落间可能含空白字符的空行
+        //  ② 其他 → escapeRegex 转义正则特殊字符后用作 split 参数
+        String[] parts = text.split(sep.equals("\n\n") ? "\n\\s*\n" : escapeRegex(sep));
 
         StringBuilder current = new StringBuilder();
 
@@ -96,7 +105,7 @@ public class RecursiveChunker implements Chunker {
             if (trimmed.isEmpty()) continue;
 
             // 如果当前段落加入后不超过 maxSize，合并
-            if (current.length() == 0) {
+            if (current.isEmpty()) {
                 current.append(trimmed);
             } else if (current.length() + sep.length() + trimmed.length() <= maxSize) {
                 current.append(sep).append(trimmed);
@@ -107,7 +116,8 @@ public class RecursiveChunker implements Chunker {
             }
         }
 
-        if (current.length() > 0) {
+        // 收尾：假设最后一段永远不会"超限"触发写入。循环中只有 current 满了才会写入 result，循环结束后在 current 中的最后一段也要加入
+        if (!current.isEmpty()) {
             result.add(current.toString());
         }
 
@@ -139,7 +149,8 @@ public class RecursiveChunker implements Chunker {
     }
 
     /**
-     * 转义正则特殊字符
+     * 转义正则特殊字符 防御性地对所有字面字符串做安全转义
+     * 它匹配正则的 12 个特殊元字符，在前面加 \ 转义。比如输入 . → 输出 \.（匹配字面句点而非"任意字符"）
      */
     private String escapeRegex(String s) {
         return s.replaceAll("([\\\\\\[\\](){}.*+?^$|])", "\\\\$1");

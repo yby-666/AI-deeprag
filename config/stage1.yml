@@ -3,13 +3,13 @@
 llm:
   baseUrl: "http://localhost:11434/v1"
   apiKey: "ollama"
-  model: "qwen2.5"
+  model: "qwen2.5:7b"
   timeout: 60
 
 embedding:
   baseUrl: "http://localhost:11434"
-  model: "nomic-embed-text"
-  dimension: 768
+  model: "bge-m3"
+  dimension: 1024
   timeout: 30
 
 vectorStore:

@@ -12,5 +12,15 @@ services:
       ETCD_USE_EMBED: "true"       # 内嵌 etcd，无需外部容器
       COMMON_STORAGETYPE: local    # 本地存储，无需 MinIO
 
+  attu:
+    image: zilliz/attu:v2.4.12
+    container_name: deeprag-attu
+    ports:
+      - "3000:3000"
+    environment:
+      MILVUS_URL: milvus:19530   # compose 内直接用服务名通信，不走宿主机
+    depends_on:
+      - milvus
+
 volumes:
   milvus_data:

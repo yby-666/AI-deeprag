@@ -29,9 +29,7 @@ public class FixedSizeChunker implements Chunker {
     /**
      * 执行固定大小分块
      * <p>
-     * 从文本起始位置开始，每次取 maxSize 个字符作为一个块。
-     * 切分时会尽量在句号或换行处断开，避免截断句子。
-     * 相邻块之间有 overlap 个字符的重叠。
+     * 切分规则：优先在句号 / 换行处截断，实在没标点才硬切到 maxSize；块与块保留重叠，防止语义割裂
      */
     @Override
     public List<Chunk> chunk(ParseResult parseResult) {
@@ -47,6 +45,7 @@ public class FixedSizeChunker implements Chunker {
 
             // 句子边界感知：在 [start, end] 范围内寻找最近的句号或换行符，避免在句子中间切断
             if (end < text.length()) {
+                // 没到文末时，在[start,end]向前找最近 。 / \n，找到就把 end 挪到标点后一位，保证不拆句子
                 int lastPeriod = text.lastIndexOf('。', end);
                 int lastNewline = text.lastIndexOf('\n', end);
                 int splitPoint = Math.max(lastPeriod, lastNewline);
@@ -55,6 +54,7 @@ public class FixedSizeChunker implements Chunker {
                 }
             }
 
+            // 截取文本、非空则构造 Chunk 存入列表
             String chunkText = text.substring(start, end).trim();
             if (!chunkText.isEmpty()) {
                 String id = generateId(parseResult.getMetadata().getSource(), index);
@@ -71,9 +71,10 @@ public class FixedSizeChunker implements Chunker {
             if (nextStart < start + minAdvance) {
                 nextStart = start + minAdvance;
             }
-            if (nextStart <= start) {
-                nextStart = end;
-            }
+            // 冗余判断
+//            if (nextStart <= start) {
+//                nextStart = end;
+//            }
             start = nextStart;
             index++;
         }

@@ -50,21 +50,25 @@ public class EmbeddingService {
      */
     public List<float[]> embedBatch(List<String> texts) {
         try {
+            // 构建接口请求body
             String body = mapper.writeValueAsString(Map.of(
                     "model", model,
                     "input", texts
             ));
 
+            // 构建接口请求
             Request request = new Request.Builder()
                     .url(baseUrl + "/api/embed")
                     .post(RequestBody.create(body, MediaType.parse("application/json")))
                     .build();
 
+            // 调用接口
             try (Response response = client.newCall(request).execute()) {
                 if (!response.isSuccessful()) {
                     throw new RuntimeException("Embedding 请求失败: " + response.code());
                 }
 
+                // 解析接口响应
                 String respBody = response.body().string();
                 JsonNode root = mapper.readTree(respBody);
                 JsonNode embeddings = root.get("embeddings");

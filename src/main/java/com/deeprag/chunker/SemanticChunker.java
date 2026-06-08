@@ -123,6 +123,7 @@ public class SemanticChunker implements Chunker {
         StringBuilder sb = new StringBuilder();
 
         for (int i = 0; i < text.length(); i++) {
+            // 不直接按照符号切割，保留标点
             char c = text.charAt(i);
             sb.append(c);
 

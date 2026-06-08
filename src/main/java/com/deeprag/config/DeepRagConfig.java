@@ -44,8 +44,10 @@ public class DeepRagConfig {
     public static class LlmConfig {
         private String baseUrl = "http://localhost:11434/v1";
         private String apiKey = "ollama";
-        private String model = "qwen2.5";
+        private String model = "qwen2.5:7b";
         private int timeout = 60;
+        /** 生成温度，0.0 为确定性输出（分类/提取任务推荐 0.0，创意任务推荐 0.7+） */
+        private double temperature = 0.0;
     }
 
     /** 文本向量化模型配置 */

@@ -94,6 +94,7 @@ public class Stage1App {
                 .baseUrl(config.getLlm().getBaseUrl())
                 .apiKey(config.getLlm().getApiKey())
                 .modelName(config.getLlm().getModel())
+                .temperature(config.getLlm().getTemperature())
                 .timeout(Duration.ofSeconds(config.getLlm().getTimeout()))
                 .build();
         Evaluator evaluator = new Evaluator(judgeModel, config.getEvaluation().getDatasetPath());

@@ -33,6 +33,7 @@ public class SimpleGenerator implements Generator {
                 .baseUrl(config.getBaseUrl())
                 .apiKey(config.getApiKey())
                 .modelName(config.getModel())
+                .temperature(config.getTemperature())
                 .timeout(java.time.Duration.ofSeconds(config.getTimeout()))
                 .build();
         ConsoleLog.info("LLM 生成器初始化完成 (模型=" + config.getModel() + ")");

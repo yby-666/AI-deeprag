@@ -68,6 +68,7 @@ public class Stage3App {
                 .baseUrl(config.getLlm().getBaseUrl())
                 .apiKey(config.getLlm().getApiKey())
                 .modelName(config.getLlm().getModel())
+                .temperature(config.getLlm().getTemperature())
                 .timeout(Duration.ofSeconds(config.getLlm().getTimeout()))
                 .build();
 
